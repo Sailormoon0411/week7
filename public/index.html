@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Daily Mood Log</title>
+</head>
+<body>
+  <h1>Daily Mood Log</h1>
+
+  <h2>Add Entry</h2>
+  <form id="entry-form">
+    <p>
+      <label>Date: <input type="date" id="date" required /></label>
+    </p>
+    <p>
+      <label>Mood:
+        <select id="mood" required>
+          <option value="">Select a mood</option>
+          <option value="Happy">Happy</option>
+          <option value="Calm">Calm</option>
+          <option value="Neutral">Neutral</option>
+          <option value="Low">Low</option>
+          <option value="Anxious">Anxious</option>
+        </select>
+      </label>
+    </p>
+    <p>
+      <label>Note:<br />
+        <textarea id="note" rows="4" cols="40" placeholder="What happened today?"></textarea>
+      </label>
+    </p>
+    <button type="submit">Save</button>
+  </form>
+  <p id="message"></p>
+
+  <h2>My Entries</h2>
+  <button id="refresh">Refresh</button>
+  <ul id="list"></ul>
+
+  <script>
+    const form = document.getElementById("entry-form");
+    const dateInput = document.getElementById("date");
+    const moodInput = document.getElementById("mood");
+    const noteInput = document.getElementById("note");
+    const message = document.getElementById("message");
+    const list = document.getElementById("list");
+    const refreshButton = document.getElementById("refresh");
+
+    // Default the date to today
+    dateInput.value = new Date().toISOString().slice(0, 10);
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      message.textContent = "Saving...";
+
+      try {
+        const response = await fetch("/new-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: dateInput.value,
+            mood: moodInput.value,
+            note: noteInput.value,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to save");
+        }
+
+        message.textContent = "Saved successfully";
+        noteInput.value = "";
+        await loadData();
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    refreshButton.addEventListener("click", loadData);
+
+    async function loadData() {
+      list.textContent = "Loading...";
+
+      try {
+        const response = await fetch("/data");
+        if (!response.ok) throw new Error("Failed to load data");
+
+        const entries = await response.json();
+        list.textContent = "";
+
+        if (entries.length === 0) {
+          list.textContent = "No entries yet";
+          return;
+        }
+
+        entries
+          .slice()
+          .reverse()
+          .forEach((entry) => {
+            const item = document.createElement("li");
+            item.textContent = entry.date + " | " + entry.mood + (entry.note ? " | " + entry.note : "");
+            list.appendChild(item);
+          });
+      } catch (error) {
+        list.textContent = error.message;
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
